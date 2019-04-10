@@ -35,7 +35,7 @@ int main(int argc, char *argv[])
     socklen_t clilen;
 
     char buffer[256];
-    char res_buf[1024] = "HTTP/1.1 404 Not Found\r\nContent-Length: \r\nContent-Type: \r\n";
+    char resp_buf[1024];
 
     // HTTP request data
     char *pot;
@@ -80,6 +80,7 @@ int main(int argc, char *argv[])
 
     while(1){
         bzero(buffer,256);
+        bzero(resp_buf,1024);
         bzero(extension,256);
         newsockfd = accept(sockfd, (struct sockaddr *) &cli_addr, &clilen);
         if (newsockfd < 0){
@@ -98,16 +99,19 @@ int main(int argc, char *argv[])
         }
 
         // parse page data and get URL
-        pot = strtok(buffer," "); 
-        pot = strtok(NULL, " ");
+        pot = strtok(buffer," ");
+        pot = strtok(NULL, ".");
+        pot = strtok(NULL, " \r\n");
 
         strcpy(extension, pot);
-        printf("file extension: %s",extension);
-        printf("size: %ld\n",strlen(extension));
+        printf("file extension: %s\n",extension);
+        //printf("size: %ld\n",strlen(extension));
         // printf("req_data: %s", req_data);
         // reponse message
+        sprintf(resp_buf, "HTTP/1.1 404 Not Found\r\nContent-Length: \r\nContent-Type: %s\r\n", extension);
+        printf("%s\n", resp_buf);
 
-        n = write(newsockfd,res_buf,sizeof(res_buf)); //NOTE: write function returns the number of bytes actually sent out Ñ> this might be less than the number you told it to send
+        n = write(newsockfd,resp_buf,sizeof(resp_buf)); //NOTE: write function returns the number of bytes actually sent out Ñ> this might be less than the number you told it to send
         if (n < 0) error("ERROR writing to socket");
         //printf("Write: %s\n", buffer);
     }
