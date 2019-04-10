@@ -37,9 +37,9 @@ int main(int argc, char *argv[])
     char buffer[256];
 
     // HTTP request data
-    char *req_data[3];
+    char req_data[128];
     char *pot;
-    int j, count;
+    int j;
 
     /*sockaddr_in: Structure Containing an Internet Address*/
     struct sockaddr_in serv_addr, cli_addr;
@@ -77,10 +77,9 @@ int main(int argc, char *argv[])
     1) Block until a new connection is established
     2) the new socket descriptor will be used for subsequent communication with the newly connected client.
     */
-    count = 0;
     while(1){
         bzero(buffer,256);
-        //bzero(req_data,3);
+        bzero(req_data,128);
         newsockfd = accept(sockfd, (struct sockaddr *) &cli_addr, &clilen);
         if (newsockfd < 0){
             error("ERROR on accept");
@@ -97,20 +96,21 @@ int main(int argc, char *argv[])
             cleanExit();
         }
 
-        // parse data
-        // if(count == 0){
-        //     pot = strtok(buffer," ");
-        //     for(j=0; j<3; j++){
-        //         req_data[j] = pot;
-        //         printf("%s\n", req_data[j]);
-        //         pot = strtok(NULL, " ");
-        //     }
-        //     count = count + 1;
-        // }
+        // parse page data
+        pot = strtok(buffer," \n");
+        if(strcmp(pot,"GET") == 0){ 
+            for(j=0; j<3; j++){
+                strcat(req_data, pot);
+                printf("%s\n", req_data);
+                //write("page.html",req_data[j],sizeof(*req_data[j]))
+                pot = strtok(NULL, " \n");
+            }
+            printf("req_data: %s", req_data);
+        }
 
         n = write(newsockfd,buffer,sizeof(buffer)); //NOTE: write function returns the number of bytes actually sent out Ñ> this might be less than the number you told it to send
         if (n < 0) error("ERROR writing to socket");
-        printf(" Write: %s\n", buffer);
+        //printf("Write: %s\n", buffer);
     }
     close(sockfd);
     close(newsockfd);
