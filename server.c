@@ -14,6 +14,8 @@
 #include <arpa/inet.h>
 #include <netdb.h>
 
+char *content_type(char *ext);
+
 void cleanExit(){
     exit(0);
 }
@@ -38,8 +40,14 @@ int main(int argc, char *argv[])
     char resp_buf[1024];
 
     // HTTP request data
-    char *pot;
-    char extension[256];
+    char *pot1, *pot2;
+    char *extension;
+
+    // html
+    FILE* fp;
+    FILE* fpp;
+    int file_size;
+    int data_size;
 
     /*sockaddr_in: Structure Containing an Internet Address*/
     struct sockaddr_in serv_addr, cli_addr;
@@ -79,9 +87,10 @@ int main(int argc, char *argv[])
     */
 
     while(1){
+        // printf("bzero\n");
         bzero(buffer,256);
         bzero(resp_buf,1024);
-        bzero(extension,256);
+        //bzero(extension,256);
         newsockfd = accept(sockfd, (struct sockaddr *) &cli_addr, &clilen);
         if (newsockfd < 0){
             error("ERROR on accept");
@@ -99,28 +108,76 @@ int main(int argc, char *argv[])
         }
 
         // parse page data and get URL
-        pot = strtok(buffer," ");
-        pot = strtok(NULL, ".");
-        pot = strtok(NULL, " \r\n");
+        pot1 = strtok(buffer," ");
+        pot1 = strtok(NULL, " ");
+        printf("%s\n", pot1);
+        if(strcmp(pot1,"/")==0){
+            sprintf(resp_buf, "HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\nContent-Type: text/plain\r\n\r\n");
+            n = write(newsockfd,resp_buf,strlen(resp_buf));
+            printf("%s\n", resp_buf);
+            if (n < 0) error("ERROR writing to socket");
+        }
+        else{
+            pot2 = strtok(pot1, ".");
+            pot2 = strtok(NULL,"");
+            printf("%s\n", pot2);
+            // pot = strtok(NULL, " \r\n");
+            extension = content_type(pot2);
 
-        strcpy(extension, pot);
-        printf("file extension: %s\n",extension);
-        //printf("size: %ld\n",strlen(extension));
-        // printf("req_data: %s", req_data);
-        // reponse message
-        sprintf(resp_buf, "HTTP/1.1 404 Not Found\r\nContent-Length: \r\nContent-Type: %s\r\n", extension);
-        printf("%s\n", resp_buf);
+            // size of html file
+            fp = fopen("page.html", "r");
+            fpp = fopen("page.html", "r");
+            fseek(fp, 0, SEEK_END);
+            file_size = ftell(fp);
 
-        n = write(newsockfd,resp_buf,sizeof(resp_buf)); //NOTE: write function returns the number of bytes actually sent out Ñ> this might be less than the number you told it to send
-        if (n < 0) error("ERROR writing to socket");
-        //printf("Write: %s\n", buffer);
+            char resp_data[file_size];
+            bzero(resp_data, file_size);
+            data_size = fread(resp_data, 1, file_size, fpp);
+
+            // response message
+            sprintf(resp_buf, "HTTP/1.1 200 OK\r\nContent-Length: %d\r\nContent-Type: %s\r\n\r\n", file_size, extension);
+            printf("%s\n",resp_buf);
+            // send response message
+
+            n = write(newsockfd, resp_buf, strlen(resp_buf)); //NOTE: write function returns the number of bytes actually sent out Ñ> this might be less than the number you told it to send
+            if (n < 0) error("ERROR writing to socket");
+            printf("%d",n);
+
+            // transfer html file data
+            n = write(newsockfd, resp_data, data_size); 
+            if (n < 0) error("ERROR writing to socket");
+
+            fclose(fp);
+            fclose(fpp);
+        }
     }
     close(sockfd);
     close(newsockfd);
 
     return 0; 
 }
-char * content_type(char * file_name){ 
 
-    return "text/html";
+char *content_type(char *ext){
+    if(strcmp(ext,"html")==0){
+        return "text/html";
+    }
+    else if(strcmp(ext,"ico")==0){
+        return "image/x-icon";
+    }
+    else if(strcmp(ext,"mp3")==0){
+        return "video/mpeg3";
+    }
+    else if(strcmp(ext,"pdf")==0){
+        return "application/pdf";
+    }
+    else if(strcmp(ext,"jpeg")==0 || strcmp(ext,"jpg")==0){
+        return "image/jpeg";
+    }
+    else if(strcmp(ext,"gif")==0){
+        return "image/gif";
+    }
+    else{
+        return "text/plain";
+    }
 }
+
